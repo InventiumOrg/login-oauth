@@ -1,111 +1,120 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
+	"log"
+	"login-oauth/config"
+	"login-oauth/controllers"
+	"login-oauth/routes"
+	"login-oauth/services"
 	"net/http"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/mux"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-var secretKey = []byte("secret-key")
+var (
+	server      *gin.Engine
+	ctx         context.Context
+	mongoclient *mongo.Client
+	redisclient *redis.Client
 
-const port = "12000"
+	userService         services.UserService
+	UserController      controllers.UserController
+	UserRouteController routes.UserRouteController
 
-type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	authCollection      *mongo.Collection
+	authService         services.AuthService
+	AuthController      controllers.AuthController
+	AuthRouteController routes.AuthRouteController
+)
+
+func init() {
+	config, err := config.LoadConfig(".")
+	if err != nil {
+		log.Fatal("cannot load config:", err)
+	}
+
+	ctx := context.TODO()
+
+	// Connect to MongoDB
+
+	mongoconn := options.Client().ApplyURI(config.DBUri)
+	mongoClient, err := mongo.Connect(ctx, mongoconn)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err := mongoClient.Ping(ctx, readpref.Primary()); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Connected to MongoDB!")
+
+	// Connect to Redis
+	redisclient = redis.NewClient(&redis.Options{
+		Addr: config.RedisUri,
+	})
+
+	if _, err := redisclient.Ping(ctx).Result(); err != nil {
+		panic(err)
+	}
+
+	err = redisclient.Set(ctx, "test", "Welcome to Golang with Redis and MongoDB", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Redis client connected successfully...")
+	// Collections
+	authCollection = mongoclient.Database("golang_mongodb").Collection("users")
+	userService = services.NewUserServiceImpl(authCollection, ctx)
+	authService = services.NewAuthService(authCollection, ctx)
+	AuthController = controllers.NewAuthController(authService, userService)
+	AuthRouteController = routes.NewAuthRouteController(AuthController)
+
+	UserController = controllers.NewUserController(userService)
+	UserRouteController = routes.NewRouteUserController(UserController)
+
+	server = gin.Default()
+
 }
 
 func main() {
-	router := mux.NewRouter()
-
-	router.HandleFunc("/api/users/signin", LoginHandler).Methods("POST")
-	router.HandleFunc("/api/users/protected", ProtectedHandler).Methods("GET")
-
-	fmt.Println("Starting login-oauth service on port: ", port)
-	err := http.ListenAndServe(":"+port, router)
+	config, err := config.LoadConfig(".")
 
 	if err != nil {
-		fmt.Println("Error starting service", err)
-	}
-}
-
-func createToken(username string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
-		jwt.MapClaims{
-			"username": username,
-			"exp":      time.Now().Add(time.Hour * 24).Unix(),
-		})
-
-	tokenString, err := token.SignedString(secretKey)
-
-	if err != nil {
-		return "", err
+		log.Fatal("Could not load config", err)
 	}
 
-	return tokenString, nil
-}
+	defer mongoclient.Disconnect(ctx)
 
-func verifyToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+	value, err := redisclient.Get(ctx, "test").Result()
+
+	if err == redis.Nil {
+		fmt.Println("key: test does not exist")
+	} else if err != nil {
+		panic(err)
+	}
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:8000", "http://localhost:3000"}
+	corsConfig.AllowCredentials = true
+
+	server.Use(cors.New(corsConfig))
+
+	router := server.Group("/api")
+	router.GET("/healthchecker", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "success", "message": value})
 	})
 
-	if err != nil {
-		return err
-	}
-
-	if !token.Valid {
-		return fmt.Errorf("invalid token")
-	}
-
-	return nil
-}
-
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var u User
-	json.NewDecoder(r.Body).Decode(&u)
-	fmt.Printf("The user request value %v", u)
-
-	if u.Username == "user01@example.com" && u.Password == "P@ssw0rd" {
-		tokenString, err := createToken(u.Username)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Errorf("No username found")
-		}
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, tokenString)
-		return
-	} else {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprint(w, "Invalid credentials")
-	}
-
-}
-
-func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	tokenString := r.Header.Get("Authorization")
-	if tokenString == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprint(w, "Missing authorization header")
-		return
-	}
-	tokenString = tokenString[len("Bearer "):]
-
-	err := verifyToken(tokenString)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprint(w, "Invalid token")
-		return
-	}
-
-	fmt.Fprint(w, "Welcome to the the protected area")
-
+	AuthRouteController.AuthRoute(router, userService)
+	UserRouteController.UserRoute(router, userService)
+	log.Fatal(server.Run(":" + config.Port))
 }
