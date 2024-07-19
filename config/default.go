@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	DBUri                  string        `mapstructure:"MONGODB_LOCAL_URI"`
+	RedisPassword          string        `mapstructure:"REDIS_PASSWORD"`
 	RedisUri               string        `mapstructure:"REDIS_URL"`
 	Port                   string        `mapstructure:"PORT"`
 	AccessTokenPrivateKey  string        `mapstructure:"ACCESS_TOKEN_PRIVATE_KEY"`
@@ -23,7 +24,7 @@ type Config struct {
 func LoadConfig(path string) (config Config, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigType("env")
-	viper.SetConfigName("app")
+	viper.SetConfigName(".env")
 
 	viper.AutomaticEnv()
 
