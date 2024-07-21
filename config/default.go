@@ -7,7 +7,9 @@ import (
 )
 
 type Config struct {
-	DBUri                  string        `mapstructure:"MONGODB_LOCAL_URI"`
+	DBUsername             string        `mapstructure:"MONGO_INITDB_ROOT_USERNAME"`
+	DBPassword             string        `mapstructure:"MONGO_INITDB_ROOT_PASSWORD"`
+	DBUri                  string        `mapstructure:"MONGODB_URI"`
 	RedisPassword          string        `mapstructure:"REDIS_PASSWORD"`
 	RedisUri               string        `mapstructure:"REDIS_URL"`
 	Port                   string        `mapstructure:"PORT"`

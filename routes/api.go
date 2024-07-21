@@ -2,14 +2,14 @@ package routes
 
 import (
 	"fmt"
-	"login-oauth/middlewares"
+	"login-oauth/handlers"
 
 	"github.com/gin-gonic/gin"
 )
 
 func Routes() *gin.Engine {
 	router := gin.New()
-	router.Use(middlewares.ValidateAuthentication)
+	// router.Use(middlewares.ValidateAuthentication)
 	router.GET("/signout", func(c *gin.Context) {
 		fmt.Println("Login Success")
 	})
@@ -19,7 +19,7 @@ func Routes() *gin.Engine {
 	})
 
 	router.POST("/signup", func(c *gin.Context) {
-		fmt.Println("Login Success")
+		handlers.SignUp(c)
 	})
 
 	return router
