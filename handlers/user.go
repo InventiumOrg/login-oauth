@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"login-oauth/models"
+	"login-oauth/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +11,7 @@ import (
 type RequestPayLoad struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
-	Role     string `json:"role" binding:"required"`
+	Role     string `json:"role,omitempty" binding:"required,omitempty"`
 }
 
 type UserPayLoad struct {
@@ -25,9 +26,11 @@ func SignUp(context *gin.Context) {
 		return
 	}
 
+	encryptedPassword, _ := utils.HashPassword(requestPayLoad.Password)
+
 	err := models.CreateNewUser(models.User{
 		Username: requestPayLoad.Username,
-		Password: requestPayLoad.Password,
+		Password: encryptedPassword,
 		Role:     requestPayLoad.Role,
 	})
 
@@ -43,4 +46,26 @@ func SignUp(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusCreated, userPayLoad)
+}
+
+func Signin(context *gin.Context) {
+	var requestPayLoad RequestPayLoad
+
+	if err := context.ShouldBindJSON(&requestPayLoad); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	// encryptedPassword, _ := utils.HashPassword(requestPayLoad.Password)
+
+	matchedUser := models.GetUserByUsername(requestPayLoad.Username)
+	err := utils.VerifyPassword(matchedUser.Password, requestPayLoad.Password)
+	if err != nil {
+		context.JSON(http.StatusUnauthorized, UserPayLoad{
+			Message: "Invalid Crendeitials",
+		})
+	} else {
+		context.JSON(http.StatusOK, UserPayLoad{
+			Message: "Login Success",
+		})
+	}
 }

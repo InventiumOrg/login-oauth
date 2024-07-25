@@ -15,7 +15,7 @@ func Routes() *gin.Engine {
 	})
 
 	router.POST("/signin", func(c *gin.Context) {
-		fmt.Println("Login Success")
+		handlers.Signin(c)
 	})
 
 	router.POST("/signup", func(c *gin.Context) {

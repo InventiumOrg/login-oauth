@@ -47,9 +47,6 @@ func main() {
 	}
 
 	app.Router.Run(config.Port)
-	// corsConfig := cors.DefaultConfig()
-	// corsConfig.AllowOrigins = []string{"http://localhost:8000", "http://localhost:3000"}
-	// corsConfig.AllowCredentials = true
 }
 
 func connectToMongo(config config.Config) (*mongo.Client, error) {

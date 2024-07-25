@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -47,5 +48,20 @@ func CreateNewUser(user User) error {
 	}
 
 	return nil
+
+}
+
+func GetUserByUsername(username string) User {
+	collection := client.Database("users").Collection("users")
+	// filter := bson.M{"username": username}
+	matchedUser := collection.FindOne(context.TODO(), bson.D{{"username", username}})
+	var result User
+	err := matchedUser.Decode(&result)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return result
 
 }
