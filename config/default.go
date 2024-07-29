@@ -21,6 +21,8 @@ type Config struct {
 	RefreshTokenExpiresIn  time.Duration `mapstructure:"REFRESH_TOKEN_EXPIRED_IN"`
 	AccessTokenMaxAge      int           `mapstructure:"ACCESS_TOKEN_MAXAGE"`
 	RefreshTokenMaxAge     int           `mapstructure:"REFRESH_TOKEN_MAXAGE"`
+	PrivateKey             string        `mapstructure:"PRIVATE_KEY"`
+	PublicKey              string        `mapstructure:"PUBLIC_KEY"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

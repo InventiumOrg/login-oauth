@@ -2,8 +2,7 @@ name: Build and Deploy to GKE
 
 on:
   push:
-    branches: ["main", "dev"]
-
+    branches: ["*"]
 env:
   REPOSITORY: 205098647215.dkr.ecr.ap-southeast-1.amazonaws.com/inventium/login-oauth
   IMAGE: login-oauth
@@ -28,9 +27,13 @@ jobs:
         run: |-
           aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin 205098647215.dkr.ecr.ap-southeast-1.amazonaws.com
 
+      - name: Get the Git commit hash
+        run: |-
+          echo "sha_short=$(git rev-parse --short "$GITHUB_SHA")" >> "$GITHUB_ENV"
+
       - name: Build
         run: |-
-          docker build --tag "$REPOSITORY:$VERSION" . --build-arg SERVICE_NAME=$IMAGE
+          docker build --tag "$REPOSITORY:$VERSION-$sha_short" . --build-arg SERVICE_NAME=$IMAGE
 
       - name: Publish
         run: |-

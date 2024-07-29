@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"fmt"
+	"login-oauth/config"
 	"login-oauth/models"
 	"login-oauth/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +19,12 @@ type RequestPayLoad struct {
 
 type UserPayLoad struct {
 	Message string `json:"message"`
+}
+
+type PayLoad struct {
+	Sub string
+	Iss string
+	AUD string
 }
 
 func SignUp(context *gin.Context) {
@@ -64,8 +73,22 @@ func Signin(context *gin.Context) {
 			Message: "Invalid Crendeitials",
 		})
 	} else {
+		payLoad := PayLoad{
+			Sub: matchedUser.ID,
+			Iss: "inventium",
+			AUD: matchedUser.Role,
+		}
+		config, err := config.LoadConfig(".")
+		token, err := utils.CreateToken(60*time.Minute, payLoad, config.PrivateKey)
+		fmt.Println(token)
+		if err != nil {
+			fmt.Println(err)
+		}
+		context.SetCookie("token", token, 3600, "/", "localhost", false, true)
 		context.JSON(http.StatusOK, UserPayLoad{
 			Message: "Login Success",
 		})
+		return
 	}
+
 }
