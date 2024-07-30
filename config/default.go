@@ -7,7 +7,10 @@ import (
 )
 
 type Config struct {
-	DBUri                  string        `mapstructure:"MONGODB_LOCAL_URI"`
+	DBUsername             string        `mapstructure:"MONGO_INITDB_ROOT_USERNAME"`
+	DBPassword             string        `mapstructure:"MONGO_INITDB_ROOT_PASSWORD"`
+	DBUri                  string        `mapstructure:"MONGODB_URI"`
+	RedisPassword          string        `mapstructure:"REDIS_PASSWORD"`
 	RedisUri               string        `mapstructure:"REDIS_URL"`
 	Port                   string        `mapstructure:"PORT"`
 	AccessTokenPrivateKey  string        `mapstructure:"ACCESS_TOKEN_PRIVATE_KEY"`
@@ -18,12 +21,14 @@ type Config struct {
 	RefreshTokenExpiresIn  time.Duration `mapstructure:"REFRESH_TOKEN_EXPIRED_IN"`
 	AccessTokenMaxAge      int           `mapstructure:"ACCESS_TOKEN_MAXAGE"`
 	RefreshTokenMaxAge     int           `mapstructure:"REFRESH_TOKEN_MAXAGE"`
+	PrivateKey             string        `mapstructure:"PRIVATE_KEY"`
+	PublicKey              string        `mapstructure:"PUBLIC_KEY"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigType("env")
-	viper.SetConfigName("app")
+	viper.SetConfigName(".env")
 
 	viper.AutomaticEnv()
 
